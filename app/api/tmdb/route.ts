@@ -11,9 +11,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid catalog query.' }, { status: 400 });
     }
     try {
-      return NextResponse.json(await getCatalogPage(kind as CatalogKind, page));
+      const catalog = await getCatalogPage(kind as CatalogKind, page);
+      return NextResponse.json(catalog, catalog.error ? { status: catalog.error.includes('not configured') ? 503 : 502 } : undefined);
     } catch {
-      return NextResponse.json({ error: 'Catalog temporarily unavailable.' }, { status: 502 });
+      return NextResponse.json({ results: [], page, total_pages: page, has_more: false, source: 'fallback', error: 'TMDB is temporarily unavailable. Try again.' }, { status: 502 });
     }
   }
   const path = request.nextUrl.searchParams.get('path');
@@ -21,10 +22,15 @@ export async function GET(request: NextRequest) {
   if (!path || !/^\/(trending|discover|search|movie|tv)(\/|$)/.test(path)) {
     return NextResponse.json({ error: 'Unsupported TMDB path.' }, { status: 400 });
   }
-  if (!key) return NextResponse.json({ results: [] });
+  if (!key) return NextResponse.json({ results: [], error: 'TMDB is unavailable because TMDB_API_KEY is not configured.' }, { status: 503 });
   const url = new URL(`https://api.themoviedb.org/3${path}`);
   url.searchParams.set('api_key', key);
-  const response = await fetch(url, { next: { revalidate: 300 } });
+  let response: Response;
+  try {
+    response = await fetch(url, { next: { revalidate: 300 } });
+  } catch {
+    return NextResponse.json({ results: [], error: 'TMDB is temporarily unavailable. Try again.' }, { status: 502 });
+  }
   if (!response.ok) return NextResponse.json({ error: 'TMDB request failed.' }, { status: response.status });
   return NextResponse.json(await response.json());
 }

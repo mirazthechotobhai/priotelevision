@@ -11,7 +11,7 @@ Redline is a Vercel-ready Next.js App Router streaming discovery UI for movies, 
 
 Without a key the app uses curated fallback content, so the UI remains previewable. The TMDB key is read only on the server and is never exposed to the browser. **Rotate your key immediately if it is ever committed, logged, pasted in a ticket, or otherwise exposed**; do not put real secrets in `.env.example`.
 
-For Vercel, set `TMDB_API_KEY` under Project Settings -> Environment Variables for the environments you deploy, then redeploy. Never use a `NEXT_PUBLIC_` name for this secret. The home page renders several fallback movie rows before progressively requesting additional TMDB pages; tabs and infinite loading continue to work with the fallback catalog when the key is missing.
+For Vercel, open **Project → Settings → Environment Variables**, add the exact name `TMDB_API_KEY` (without `NEXT_PUBLIC_`) and the TMDB v3 API key as its value, select the environments to deploy, save, and redeploy. Never use a `NEXT_PUBLIC_` name for this secret. The home page renders the static fallback first, then requests paginated TMDB pages through the server-only `/api/tmdb` gateway. Missing keys and API/rate-limit failures are shown with a retry action instead of being hidden behind static data. TMDB pagination is finite (up to page 500, with rate limits applying), so infinite loading ends when TMDB reports no more pages.
 
 Firebase is intentionally optional. When it is not configured, “My list” uses browser localStorage. Add Firebase auth and persistence behind the same client boundary when cross-device accounts are needed.
 

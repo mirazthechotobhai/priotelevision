@@ -2,6 +2,14 @@ import { fallbackMedia } from '@/lib/fallback';
 
 export type Media={id:string;title:string;poster:string;overview:string;year:string;rating:number;genre:string;type:'movie'|'tv'};
 export type CatalogKind = 'movie' | 'tv' | 'anime';
+export type CatalogPage = {
+  results: Media[];
+  page: number;
+  total_pages: number;
+  has_more: boolean;
+  source: 'tmdb' | 'fallback';
+  error?: string;
+};
 const img=(path:string)=>path?`https://image.tmdb.org/t/p/w500${path}`:'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500&auto=format&fit=crop';
 async function tmdb(path:string):Promise<any>{
   const key = process.env.TMDB_API_KEY;
@@ -10,10 +18,14 @@ async function tmdb(path:string):Promise<any>{
     const url = new URL(`https://api.themoviedb.org/3${path}`);
     url.searchParams.set('api_key', key);
     const r = await fetch(url, { next: { revalidate: 300 } });
-    if (!r.ok) return null;
+    if (!r.ok) {
+      console.warn('[TMDB] request failed', { path: url.pathname, status: r.status });
+      return null;
+    }
     const data = await r.json();
     return data && typeof data === 'object' ? data : null;
-  } catch {
+  } catch (error) {
+    console.warn('[TMDB] request failed', { path, reason: error instanceof Error ? error.name : 'unknown' });
     return null;
   }
 }
@@ -25,12 +37,28 @@ const fallbackFor = (kind: CatalogKind) => kind === 'movie'
 
 export async function getCatalogPage(kind: CatalogKind, page: number) {
   const path = kind === 'anime'
-    ? `/discover/tv?language=en-US&sort_by=popularity.desc&with_genres=16&with_keywords=210024&with_original_language=ja&page=${page}`
+    ? `/discover/tv?language=en-US&sort_by=popularity.desc&with_genres=16&with_original_language=ja&page=${page}`
     : `/discover/${kind}?language=en-US&sort_by=popularity.desc&page=${page}`;
+  const fallback = fallbackFor(kind);
+  const unavailable = (error: string): CatalogPage => ({
+    results: page === 1 ? fallback : [],
+    page,
+    total_pages: page,
+    has_more: false,
+    source: 'fallback',
+    error,
+  });
+  if (!process.env.TMDB_API_KEY) {
+    return unavailable('TMDB is unavailable because TMDB_API_KEY is not configured.');
+  }
   const data = await tmdb(path);
   const items = results(data).map((x:any) => normalize(x, kind === 'movie' ? 'movie' : 'tv'));
-  if (items.length) return { results: items, page: data.page || page, total_pages: Math.min(data.total_pages || page, 500) };
-  return { results: page === 1 ? fallbackFor(kind) : [], page, total_pages: page === 1 && !process.env.TMDB_API_KEY ? 1 : (data?.total_pages || page) };
+  if (items.length) {
+    const currentPage = Number(data.page) || page;
+    const totalPages = Math.min(Number(data.total_pages) || currentPage, 500);
+    return { results: items, page: currentPage, total_pages: totalPages, has_more: currentPage < totalPages, source: 'tmdb' };
+  }
+  return unavailable('TMDB is temporarily unavailable. Try again.');
 }
 export async function getTrending(){const items=results(await tmdb('/trending/all/week?language=en-US')).filter((x:any)=>x.media_type!=='person').slice(0,10);return items.length?items.map((x:any)=>normalize(x,x.media_type==='tv'?'tv':'movie')):fallbackMedia.slice(0,5)}
 export async function getByGenre(id:number){const items=results(await tmdb(`/discover/tv?with_genres=${id}&sort_by=popularity.desc`)).slice(0,10);return items.length?items.map((x:any)=>normalize(x,'tv')):fallbackMedia.slice(4)}
