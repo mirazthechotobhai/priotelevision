@@ -12,7 +12,7 @@ export default function HomeCatalog({ initialItems }: { initialItems: Media[] })
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(true);
   const sentinel = useRef<HTMLDivElement>(null);
 
   const loadNext = useCallback(async () => {
