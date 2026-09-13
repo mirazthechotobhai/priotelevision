@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCatalogPage, type CatalogKind } from '@/lib/tmdb';
 
 /** A deliberately server-only TMDB gateway. The API key never crosses this boundary. */
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function GET(request: NextRequest) {
   const kind = request.nextUrl.searchParams.get('type');
   const pageValue = request.nextUrl.searchParams.get('page') || '1';
@@ -12,7 +15,10 @@ export async function GET(request: NextRequest) {
     }
     try {
       const catalog = await getCatalogPage(kind as CatalogKind, page);
-      return NextResponse.json(catalog, catalog.error ? { status: catalog.error.includes('not configured') ? 503 : 502 } : undefined);
+      if (catalog.error) {
+        return NextResponse.json(catalog, { status: catalog.error.includes('not configured') ? 503 : 502 });
+      }
+      return NextResponse.json(catalog);
     } catch {
       return NextResponse.json({ results: [], page, total_pages: page, has_more: false, source: 'fallback', error: 'TMDB is temporarily unavailable. Try again.' }, { status: 502 });
     }
@@ -32,5 +38,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ results: [], error: 'TMDB is temporarily unavailable. Try again.' }, { status: 502 });
   }
   if (!response.ok) return NextResponse.json({ error: 'TMDB request failed.' }, { status: response.status });
-  return NextResponse.json(await response.json());
+  try {
+    return NextResponse.json(await response.json());
+  } catch {
+    return NextResponse.json({ error: 'TMDB returned an invalid response.' }, { status: 502 });
+  }
 }

@@ -17,4 +17,4 @@ Firebase is intentionally optional. When it is not configured, “My list” use
 
 ## Checks
 
-`npm run lint`, `npm run typecheck`, and `npm run build`
+`npm run lint`, `npm run typecheck`, and `npm run build`. `TMDB_API_KEY` is optional during build; it is read only when the runtime API route handles a request. If Vercel still reports `npm run build` exit 1, copy the complete build log (including the first TypeScript/Next error) because the exit code alone does not identify the failing module.
