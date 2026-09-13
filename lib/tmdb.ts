@@ -4,15 +4,22 @@ const mock:Media[]=[['872585','Oppenheimer','/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg','
 async function tmdb(path:string):Promise<any>{
   const key = process.env.TMDB_API_KEY;
   if (!key) return null;
-  const url = new URL(`https://api.themoviedb.org/3${path}`);
-  url.searchParams.set('api_key', key);
-  const r = await fetch(url, { next: { revalidate: 300 } });
-  return r.ok ? r.json() : null;
+  try {
+    const url = new URL(`https://api.themoviedb.org/3${path}`);
+    url.searchParams.set('api_key', key);
+    const r = await fetch(url, { next: { revalidate: 300 } });
+    if (!r.ok) return null;
+    const data = await r.json();
+    return data && typeof data === 'object' ? data : null;
+  } catch {
+    return null;
+  }
 }
 function normalize(x:any,type:'movie'|'tv'):Media{return{id:String(x.id),title:x.title||x.name,poster:img(x.poster_path),overview:x.overview||'No overview available.',year:(x.release_date||x.first_air_date||'').slice(0,4)||'—',rating:x.vote_average||0,genre:'Featured',type}}
-export async function getTrending(){const d=await tmdb('/trending/all/week?language=en-US');return d?.results?.filter((x:any)=>x.media_type!=='person').slice(0,10).map((x:any)=>normalize(x,x.media_type==='tv'?'tv':'movie'))||mock.slice(0,5)}
-export async function getByGenre(id:number){const d=await tmdb(`/discover/tv?with_genres=${id}&sort_by=popularity.desc`);return d?.results?.slice(0,10).map((x:any)=>normalize(x,'tv'))||mock.slice(4)}
-export async function searchTitles(q:string,type?:string){const d=await tmdb(`/search/${type||'multi'}?query=${encodeURIComponent(q)}&language=en-US`);return d?.results?.filter((x:any)=>x.media_type!=='person').slice(0,20).map((x:any)=>normalize(x,x.media_type==='tv'||type==='tv'?'tv':'movie'))||mock.filter(x=>x.title.toLowerCase().includes(q.toLowerCase()))}
+const results = (data:any): any[] => Array.isArray(data?.results) ? data.results : [];
+export async function getTrending(){const items=results(await tmdb('/trending/all/week?language=en-US')).filter((x:any)=>x.media_type!=='person').slice(0,10);return items.length?items.map((x:any)=>normalize(x,x.media_type==='tv'?'tv':'movie')):mock.slice(0,5)}
+export async function getByGenre(id:number){const items=results(await tmdb(`/discover/tv?with_genres=${id}&sort_by=popularity.desc`)).slice(0,10);return items.length?items.map((x:any)=>normalize(x,'tv')):mock.slice(4)}
+export async function searchTitles(q:string,type?:string){const items=results(await tmdb(`/search/${type||'multi'}?query=${encodeURIComponent(q)}&language=en-US`)).filter((x:any)=>x.media_type!=='person').slice(0,20);return items.length?items.map((x:any)=>normalize(x,x.media_type==='tv'||type==='tv'?'tv':'movie')):mock.filter(x=>x.title.toLowerCase().includes(q.toLowerCase()))}
 export async function getTitle(id:string){
   const found = mock.find(x => x.id === id);
   if (found) return found;
