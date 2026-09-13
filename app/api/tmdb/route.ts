@@ -1,7 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getCatalogPage, type CatalogKind } from '@/lib/tmdb';
 
 /** A deliberately server-only TMDB gateway. The API key never crosses this boundary. */
 export async function GET(request: NextRequest) {
+  const kind = request.nextUrl.searchParams.get('type');
+  const pageValue = request.nextUrl.searchParams.get('page') || '1';
+  if (kind) {
+    const page = Number(pageValue);
+    if (!['movie', 'tv', 'anime'].includes(kind) || !/^\d+$/.test(pageValue) || page < 1 || page > 500) {
+      return NextResponse.json({ error: 'Invalid catalog query.' }, { status: 400 });
+    }
+    try {
+      return NextResponse.json(await getCatalogPage(kind as CatalogKind, page));
+    } catch {
+      return NextResponse.json({ error: 'Catalog temporarily unavailable.' }, { status: 502 });
+    }
+  }
   const path = request.nextUrl.searchParams.get('path');
   const key = process.env.TMDB_API_KEY;
   if (!path || !/^\/(trending|discover|search|movie|tv)(\/|$)/.test(path)) {
