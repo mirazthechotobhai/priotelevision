@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CatalogKind, Media } from '@/lib/tmdb';
+import Image from 'next/image';
 
 const labels: Record<CatalogKind, string> = { movie: 'Movie', tv: 'TV Show', anime: 'Anime' };
 const unique = (items: Media[]) => Array.from(new Map(items.map(item => [item.id, item])).values());
@@ -84,7 +85,7 @@ export default function HomeCatalog({ initialItems }: { initialItems: Media[] })
     <div className="catalog-head"><div><p className="eyebrow">Browse the collection</p><h2 id="catalog-heading">{labels[kind]}</h2></div>
       <div className="tabs" role="tablist" aria-label="Content type">{(Object.keys(labels) as CatalogKind[]).map(tab => <button key={tab} className={tab === kind ? 'tab active' : 'tab'} role="tab" aria-selected={tab === kind} onClick={() => selectKind(tab)}>{labels[tab]}</button>)}</div>
     </div>
-    <div className="grid">{unique(items).map(item => <a className="card" href={`/title/${item.id}`} key={`${kind}-${item.id}`}><div className="poster"><img src={item.poster} alt={`${item.title} poster`} loading="lazy" /><span className="play" aria-hidden>▶</span></div><strong>{item.title}</strong><span>{item.year} · ★ {item.rating.toFixed(1)}</span></a>)}</div>
+    <div className="grid">{unique(items).map(item => <a className="card" href={`/title/${item.id}`} key={`${kind}-${item.id}`}><div className="poster"><Image src={item.poster} alt={`${item.title} poster`} fill sizes="(max-width: 800px) 33vw, 16vw" loading="lazy" /><span className="play" aria-hidden>▶</span></div><strong>{item.title}</strong><span>{item.year} · ★ {item.rating.toFixed(1)}</span></a>)}</div>
     <div ref={sentinel} className="catalog-status" aria-live="polite">{loading && <span>Loading more {labels[kind].toLowerCase()}…</span>}{!loading && error && <><span>{error}</span><button className="retry" onClick={() => void fetchPage(kind, pageRef.current || 1, pageRef.current > 1)}>Try again</button></>}{!loading && !error && !hasMore && page > 0 && <span>You&apos;ve reached the end.</span>}</div>
   </section>;
 }
