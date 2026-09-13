@@ -14,6 +14,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid catalog query.' }, { status: 400 });
     }
     try {
+      const functionUrl = process.env.TMDB_FUNCTION_URL;
+      if (functionUrl) {
+        const url = new URL(functionUrl);
+        url.searchParams.set('type', kind);
+        url.searchParams.set('page', pageValue);
+        const functionResponse = await fetch(url, { cache: 'no-store' });
+        const data = await functionResponse.json();
+        return NextResponse.json(data, { status: functionResponse.status });
+      }
       const catalog = await getCatalogPage(kind as CatalogKind, page);
       if (catalog.error) {
         return NextResponse.json(catalog, { status: catalog.error.includes('not configured') ? 503 : 502 });

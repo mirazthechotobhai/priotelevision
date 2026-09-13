@@ -26,7 +26,11 @@ export default function HomeCatalog({ initialItems }: { initialItems: Media[] })
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(`/api/tmdb?type=${requestedKind}&page=${requestedPage}`);
+      const functionUrl = process.env.NEXT_PUBLIC_TMDB_FUNCTION_URL;
+      const endpoint = functionUrl
+        ? `${functionUrl.replace(/\/$/, '')}?type=${requestedKind}&page=${requestedPage}`
+        : `/api/tmdb?type=${requestedKind}&page=${requestedPage}`;
+      const response = await fetch(endpoint);
       const data = await response.json();
       if (requestId !== requestRef.current) return;
       const responseItems = Array.isArray(data.results) ? data.results : [];
